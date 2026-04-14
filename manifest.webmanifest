@@ -2,7 +2,7 @@
   "name": "Akashvani Radio",
   "short_name": "Akashvani",
   "description": "Live Akashvani and AIR radio with smart personalized playback queue",
-  "start_url": "/akashvani-radio/",
+  "start_url": "/akashvani-radio",
   "display": "standalone",
   "background_color": "#020617",
   "theme_color": "#111827",

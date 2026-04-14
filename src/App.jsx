@@ -23,7 +23,7 @@ function App() {
   const [offline, setOffline] = useState(!navigator.onLine)
   const [deferredPrompt, setDeferredPrompt] = useState(null)
   const [installState, setInstallState] = useState('')
-  const [spectrumGain, setSpectrumGain] = useState(1.4)
+  const [spectrumGain, setSpectrumGain] = useState(1.0)
   const [noiseFloor, setNoiseFloor] = useState(0.02)
   const [showSpectrumCalibration, setShowSpectrumCalibration] = useState(false)
   const canvasRef = useRef(null)

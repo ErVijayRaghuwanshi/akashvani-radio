@@ -392,7 +392,7 @@ function App() {
                 <button
                   type="button"
                   onClick={() => {
-                    setSpectrumGain(1.4)
+                    setSpectrumGain(1.0)
                     setNoiseFloor(0.02)
                   }}
                   className="rounded-full border border-slate-700 px-3 py-1 text-xs text-slate-300 hover:border-slate-500"

@@ -22,6 +22,8 @@ function App() {
   const [offline, setOffline] = useState(!navigator.onLine)
   const [deferredPrompt, setDeferredPrompt] = useState(null)
   const [installState, setInstallState] = useState('')
+  const [spectrumGain, setSpectrumGain] = useState(1.4)
+  const [noiseFloor, setNoiseFloor] = useState(0.02)
   const canvasRef = useRef(null)
   const animationRef = useRef(null)
 
@@ -139,8 +141,6 @@ function App() {
       const numBars = 64
       const barWidth = width / numBars
       const pipBarWidth = pipWidth / numBars
-      const spectrumGain = 1.4  // Increased from 1.5 for more visible bars
-      const noiseFloor = 0.02   // Reduced from 0.02 for more visible bars
       const hueShift = (Date.now() / 25) % 360
       const analyser = analyserRef.current
       const dataArray = analyser ? new Uint8Array(analyser.frequencyBinCount) : null
@@ -212,7 +212,7 @@ function App() {
 
     animationRef.current = requestAnimationFrame(draw)
     return () => cancelAnimationFrame(animationRef.current)
-  }, [analyserRef, currentStation, isPlaying, pipCanvasRef])
+  }, [analyserRef, currentStation, isPlaying, noiseFloor, pipCanvasRef, spectrumGain])
 
   const onInstallClick = async () => {
     if (!deferredPrompt) return
@@ -370,6 +370,50 @@ function App() {
 
             <div className="text-xs text-slate-400">
               Auto favorites: {autoFavorites.length} • Recent plays: {profile.recentPlays.length}
+            </div>
+          </div>
+
+          <div className="mb-5 rounded-xl border border-slate-800 bg-slate-950/40 p-3">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-orange-300">Spectrum Calibration</h2>
+              <button
+                type="button"
+                onClick={() => {
+                  setSpectrumGain(1.4)
+                  setNoiseFloor(0.02)
+                }}
+                className="rounded-full border border-slate-700 px-3 py-1 text-xs text-slate-300 hover:border-slate-500"
+              >
+                Reset
+              </button>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs text-slate-300">
+                <span className="mb-2 block">Gain: {spectrumGain.toFixed(2)}</span>
+                <input
+                  type="range"
+                  min="0.8"
+                  max="3"
+                  step="0.05"
+                  value={spectrumGain}
+                  onChange={(event) => setSpectrumGain(Number(event.target.value))}
+                  className="w-full accent-orange-500"
+                />
+              </label>
+
+              <label className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs text-slate-300">
+                <span className="mb-2 block">Noise Floor: {noiseFloor.toFixed(3)}</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="0.08"
+                  step="0.002"
+                  value={noiseFloor}
+                  onChange={(event) => setNoiseFloor(Number(event.target.value))}
+                  className="w-full accent-orange-500"
+                />
+              </label>
             </div>
           </div>
 

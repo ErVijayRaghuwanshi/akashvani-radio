@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  Settings,
   Download,
   Pause,
   PictureInPicture,
@@ -24,6 +25,7 @@ function App() {
   const [installState, setInstallState] = useState('')
   const [spectrumGain, setSpectrumGain] = useState(1.4)
   const [noiseFloor, setNoiseFloor] = useState(0.02)
+  const [showSpectrumCalibration, setShowSpectrumCalibration] = useState(false)
   const canvasRef = useRef(null)
   const animationRef = useRef(null)
 
@@ -371,51 +373,63 @@ function App() {
             <div className="text-xs text-slate-400">
               Auto favorites: {autoFavorites.length} • Recent plays: {profile.recentPlays.length}
             </div>
+
+            <button
+              type="button"
+              onClick={() => setShowSpectrumCalibration((prev) => !prev)}
+              className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1.5 text-xs text-slate-300 hover:border-slate-500"
+              aria-label="Toggle spectrum calibration"
+            >
+              <Settings size={14} />
+              {showSpectrumCalibration ? 'Hide Calibration' : 'Spectrum Calibration'}
+            </button>
           </div>
 
-          <div className="mb-5 rounded-xl border border-slate-800 bg-slate-950/40 p-3">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-orange-300">Spectrum Calibration</h2>
-              <button
-                type="button"
-                onClick={() => {
-                  setSpectrumGain(1.4)
-                  setNoiseFloor(0.02)
-                }}
-                className="rounded-full border border-slate-700 px-3 py-1 text-xs text-slate-300 hover:border-slate-500"
-              >
-                Reset
-              </button>
-            </div>
+          {showSpectrumCalibration && (
+            <div className="mb-5 rounded-xl border border-slate-800 bg-slate-950/40 p-3">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-orange-300">Spectrum Calibration</h2>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSpectrumGain(1.4)
+                    setNoiseFloor(0.02)
+                  }}
+                  className="rounded-full border border-slate-700 px-3 py-1 text-xs text-slate-300 hover:border-slate-500"
+                >
+                  Reset
+                </button>
+              </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs text-slate-300">
-                <span className="mb-2 block">Gain: {spectrumGain.toFixed(2)}</span>
-                <input
-                  type="range"
-                  min="0.8"
-                  max="3"
-                  step="0.05"
-                  value={spectrumGain}
-                  onChange={(event) => setSpectrumGain(Number(event.target.value))}
-                  className="w-full accent-orange-500"
-                />
-              </label>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs text-slate-300">
+                  <span className="mb-2 block">Gain: {spectrumGain.toFixed(2)}</span>
+                  <input
+                    type="range"
+                    min="0.8"
+                    max="3"
+                    step="0.05"
+                    value={spectrumGain}
+                    onChange={(event) => setSpectrumGain(Number(event.target.value))}
+                    className="w-full accent-orange-500"
+                  />
+                </label>
 
-              <label className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs text-slate-300">
-                <span className="mb-2 block">Noise Floor: {noiseFloor.toFixed(3)}</span>
-                <input
-                  type="range"
-                  min="0"
-                  max="0.08"
-                  step="0.002"
-                  value={noiseFloor}
-                  onChange={(event) => setNoiseFloor(Number(event.target.value))}
-                  className="w-full accent-orange-500"
-                />
-              </label>
+                <label className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs text-slate-300">
+                  <span className="mb-2 block">Noise Floor: {noiseFloor.toFixed(3)}</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="0.08"
+                    step="0.002"
+                    value={noiseFloor}
+                    onChange={(event) => setNoiseFloor(Number(event.target.value))}
+                    className="w-full accent-orange-500"
+                  />
+                </label>
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="mb-5 overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/40 p-3">
             <h2 className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-orange-300">Smart Queue</h2>

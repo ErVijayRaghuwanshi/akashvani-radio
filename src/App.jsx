@@ -18,6 +18,12 @@ import { useSmartQueue } from './hooks/useSmartQueue'
 
 const getHashQueryParams = (hash) => new URLSearchParams(hash.includes('?') ? hash.split('?')[1] : '')
 
+const toStationSlug = (name) =>
+  String(name || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+
 const getStationIdFromLocation = () => {
   if (typeof window === 'undefined') return ''
 
@@ -141,9 +147,13 @@ function App() {
 
     const hashParams = getHashQueryParams(window.location.hash || '')
     const autoplayParam = hashParams.get('autoplay')
-    const nextHash = autoplayParam
-      ? `#/station/${encodeURIComponent(currentStation.id)}?autoplay=${encodeURIComponent(autoplayParam)}`
+    const stationSlug = toStationSlug(currentStation.name)
+    const stationPath = stationSlug
+      ? `#/station/${encodeURIComponent(currentStation.id)}/${encodeURIComponent(stationSlug)}`
       : `#/station/${encodeURIComponent(currentStation.id)}`
+    const nextHash = autoplayParam
+      ? `${stationPath}?autoplay=${encodeURIComponent(autoplayParam)}`
+      : stationPath
 
     if (window.location.hash !== nextHash) {
       window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}${nextHash}`)

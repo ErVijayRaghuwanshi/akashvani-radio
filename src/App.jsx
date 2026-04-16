@@ -54,6 +54,7 @@ function App() {
   const [deferredPrompt, setDeferredPrompt] = useState(null)
   const [installState, setInstallState] = useState('')
   const [showMobileVolume, setShowMobileVolume] = useState(false)
+  const currentStationIdRef = useRef(currentStation.id)
   const canvasRef = useRef(null)
   const animationRef = useRef(null)
 
@@ -112,9 +113,13 @@ function App() {
   }, [currentStation.id, getPrev, selectStation])
 
   useEffect(() => {
+    currentStationIdRef.current = currentStation.id
+  }, [currentStation.id])
+
+  useEffect(() => {
     const syncStationFromLocation = () => {
       const nextStation = getStationFromLocation()
-      if (nextStation.id !== currentStation.id) {
+      if (nextStation.id !== currentStationIdRef.current) {
         setCurrentStation(nextStation)
       }
 
@@ -129,7 +134,7 @@ function App() {
     return () => {
       window.removeEventListener('hashchange', syncStationFromLocation)
     }
-  }, [currentStation.id, setIsPlaying])
+  }, [setIsPlaying])
 
   useEffect(() => {
     if (typeof window === 'undefined' || !currentStation?.id) return

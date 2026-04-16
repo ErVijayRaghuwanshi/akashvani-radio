@@ -16,8 +16,39 @@ import { RADIO_STATIONS } from './data/stations'
 import { useRadioPlayer } from './hooks/useRadioPlayer'
 import { useSmartQueue } from './hooks/useSmartQueue'
 
+const getHashQueryParams = (hash) => new URLSearchParams(hash.includes('?') ? hash.split('?')[1] : '')
+
+const getStationIdFromLocation = () => {
+  if (typeof window === 'undefined') return ''
+
+  const hash = window.location.hash || ''
+  const hashMatch = hash.match(/^#\/station\/([^/?#]+)/i)
+  if (hashMatch?.[1]) {
+    return decodeURIComponent(hashMatch[1])
+  }
+
+  const searchParams = new URLSearchParams(window.location.search)
+  return searchParams.get('station') || getHashQueryParams(hash).get('station') || ''
+}
+
+const shouldAutoplayFromLocation = () => {
+  if (typeof window === 'undefined') return false
+
+  const searchParams = new URLSearchParams(window.location.search)
+  const hashParams = getHashQueryParams(window.location.hash || '')
+  const raw = (hashParams.get('autoplay') || searchParams.get('autoplay') || '').toLowerCase()
+  return raw === '1' || raw === 'true' || raw === 'yes'
+}
+
+const getStationFromLocation = () => {
+  const stationId = getStationIdFromLocation()
+  if (!stationId) return RADIO_STATIONS[0]
+
+  return RADIO_STATIONS.find((station) => String(station.id) === stationId) || RADIO_STATIONS[0]
+}
+
 function App() {
-  const [currentStation, setCurrentStation] = useState(RADIO_STATIONS[0])
+  const [currentStation, setCurrentStation] = useState(() => getStationFromLocation())
   const [searchQuery, setSearchQuery] = useState('')
   const [offline, setOffline] = useState(!navigator.onLine)
   const [deferredPrompt, setDeferredPrompt] = useState(null)
@@ -79,6 +110,40 @@ function App() {
     if (!prev) return
     selectStation(prev)
   }, [currentStation.id, getPrev, selectStation])
+
+  useEffect(() => {
+    const syncStationFromLocation = () => {
+      const nextStation = getStationFromLocation()
+      if (nextStation.id !== currentStation.id) {
+        setCurrentStation(nextStation)
+      }
+
+      if (shouldAutoplayFromLocation()) {
+        setIsPlaying(true)
+      }
+    }
+
+    syncStationFromLocation()
+    window.addEventListener('hashchange', syncStationFromLocation)
+
+    return () => {
+      window.removeEventListener('hashchange', syncStationFromLocation)
+    }
+  }, [currentStation.id, setIsPlaying])
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !currentStation?.id) return
+
+    const hashParams = getHashQueryParams(window.location.hash || '')
+    const autoplayParam = hashParams.get('autoplay')
+    const nextHash = autoplayParam
+      ? `#/station/${encodeURIComponent(currentStation.id)}?autoplay=${encodeURIComponent(autoplayParam)}`
+      : `#/station/${encodeURIComponent(currentStation.id)}`
+
+    if (window.location.hash !== nextHash) {
+      window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}${nextHash}`)
+    }
+  }, [currentStation])
 
   useEffect(() => {
     const handleOnline = () => setOffline(false)

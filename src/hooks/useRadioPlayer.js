@@ -10,6 +10,9 @@ export function useRadioPlayer(currentStation) {
   const analyserRef = useRef(null)
   const sourceNodeRef = useRef(null)
   const canAnalyzeStreamRef = useRef(false)
+  const currentSourceUrlRef = useRef('')
+  const currentIsHlsRef = useRef(false)
+  const hlsFallbackTriedRef = useRef(false)
 
   const [isPlaying, setIsPlaying] = useState(false)
   const [volume, setVolume] = useState(1)
@@ -95,6 +98,9 @@ export function useRadioPlayer(currentStation) {
 
     cleanupHls()
     canAnalyzeStreamRef.current = isHlsStream
+    currentSourceUrlRef.current = sourceUrl
+    currentIsHlsRef.current = isHlsStream
+    hlsFallbackTriedRef.current = false
 
     if (isHlsStream && Hls.isSupported()) {
       audio.crossOrigin = 'anonymous'
@@ -130,6 +136,9 @@ export function useRadioPlayer(currentStation) {
       }
       audio.src = sourceUrl
       audio.load()
+      if (isPlaying) {
+        audio.play().catch(() => setIsPlaying(false))
+      }
     }
 
     return cleanupHls
@@ -144,8 +153,50 @@ export function useRadioPlayer(currentStation) {
     const audio = audioRef.current
     if (!audio) return
 
-    const onCanPlay = () => setIsLoading(false)
+    const onCanPlay = () => {
+      setIsLoading(false)
+      setError('')
+    }
     const onError = () => {
+      const sourceUrl = currentSourceUrlRef.current
+      const canRetryAsHls =
+        Boolean(sourceUrl) &&
+        !currentIsHlsRef.current &&
+        !hlsFallbackTriedRef.current &&
+        Hls.isSupported()
+
+      if (canRetryAsHls) {
+        hlsFallbackTriedRef.current = true
+        currentIsHlsRef.current = true
+        canAnalyzeStreamRef.current = true
+        cleanupHls()
+
+        audio.crossOrigin = 'anonymous'
+        const hls = new Hls({
+          lowLatencyMode: true,
+          backBufferLength: 90,
+        })
+
+        hlsRef.current = hls
+        hls.loadSource(sourceUrl)
+        hls.attachMedia(audio)
+
+        hls.on(Hls.Events.ERROR, (_, data) => {
+          if (data?.fatal) {
+            setIsLoading(false)
+            setError('Unable to load this channel stream right now.')
+            setIsPlaying(false)
+          }
+        })
+
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          setIsLoading(false)
+          setError('')
+          audio.play().catch(() => setIsPlaying(false))
+        })
+        return
+      }
+
       setIsLoading(false)
       setError('Playback failed. Try another station.')
       setIsPlaying(false)
@@ -158,7 +209,7 @@ export function useRadioPlayer(currentStation) {
       audio.removeEventListener('canplay', onCanPlay)
       audio.removeEventListener('error', onError)
     }
-  }, [])
+  }, [cleanupHls])
 
   useEffect(() => {
     const audio = audioRef.current

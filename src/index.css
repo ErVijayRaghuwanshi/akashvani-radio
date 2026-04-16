@@ -16,8 +16,8 @@ body {
 
 .player-btn {
   display: inline-flex;
-  height: 2.75rem;
-  width: 2.75rem;
+  height: 3rem;
+  width: 3rem;
   align-items: center;
   justify-content: center;
   border-radius: 9999px;
@@ -30,4 +30,18 @@ body {
 .player-btn:hover {
   border-color: rgb(100 116 139 / 1);
   background: rgb(15 23 42 / 1);
+}
+
+.player-btn:focus-visible {
+  outline: 2px solid rgb(251 146 60 / 0.9);
+  outline-offset: 2px;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }

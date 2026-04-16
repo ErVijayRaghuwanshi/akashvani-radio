@@ -9,6 +9,7 @@ export function useRadioPlayer(currentStation) {
   const audioCtxRef = useRef(null)
   const analyserRef = useRef(null)
   const sourceNodeRef = useRef(null)
+  const canAnalyzeStreamRef = useRef(false)
 
   const [isPlaying, setIsPlaying] = useState(false)
   const [volume, setVolume] = useState(1)
@@ -27,32 +28,60 @@ export function useRadioPlayer(currentStation) {
     }
   }, [])
 
+  const teardownAudioGraph = useCallback(() => {
+    try {
+      sourceNodeRef.current?.disconnect()
+    } catch {
+      // noop
+    }
+    try {
+      analyserRef.current?.disconnect()
+    } catch {
+      // noop
+    }
+
+    sourceNodeRef.current = null
+    analyserRef.current = null
+
+    const audioCtx = audioCtxRef.current
+    audioCtxRef.current = null
+
+    if (audioCtx && audioCtx.state !== 'closed') {
+      audioCtx.close().catch(() => null)
+    }
+  }, [])
+
   const ensureAudioGraph = useCallback(async () => {
     const audio = audioRef.current
     if (!audio) return
+    if (!canAnalyzeStreamRef.current) return
 
-    if (!audioCtxRef.current) {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext
-      if (!AudioCtx) return
-      audioCtxRef.current = new AudioCtx()
-    }
+    try {
+      if (!audioCtxRef.current) {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext
+        if (!AudioCtx) return
+        audioCtxRef.current = new AudioCtx()
+      }
 
-    if (!analyserRef.current) {
-      const analyser = audioCtxRef.current.createAnalyser()
-      analyser.fftSize = 256
-      analyser.smoothingTimeConstant = 0.78
-      analyserRef.current = analyser
-    }
+      if (!analyserRef.current) {
+        const analyser = audioCtxRef.current.createAnalyser()
+        analyser.fftSize = 256
+        analyser.smoothingTimeConstant = 0.78
+        analyserRef.current = analyser
+      }
 
-    if (!sourceNodeRef.current) {
-      const source = audioCtxRef.current.createMediaElementSource(audio)
-      source.connect(analyserRef.current)
-      analyserRef.current.connect(audioCtxRef.current.destination)
-      sourceNodeRef.current = source
-    }
+      if (!sourceNodeRef.current) {
+        const source = audioCtxRef.current.createMediaElementSource(audio)
+        source.connect(analyserRef.current)
+        analyserRef.current.connect(audioCtxRef.current.destination)
+        sourceNodeRef.current = source
+      }
 
-    if (audioCtxRef.current.state === 'suspended') {
-      await audioCtxRef.current.resume()
+      if (audioCtxRef.current.state === 'suspended') {
+        await audioCtxRef.current.resume()
+      }
+    } catch {
+      analyserRef.current = null
     }
   }, [])
 
@@ -60,12 +89,15 @@ export function useRadioPlayer(currentStation) {
     if (!audioRef.current || !currentStation) return
     const audio = audioRef.current
     const sourceUrl = currentStation.liveUrl || currentStation.live_url
+    const isHlsStream = /\.m3u8(?:$|\?)/i.test(sourceUrl || '')
 
     if (!sourceUrl) return
 
     cleanupHls()
+    canAnalyzeStreamRef.current = isHlsStream
 
-    if (Hls.isSupported()) {
+    if (isHlsStream && Hls.isSupported()) {
+      audio.crossOrigin = 'anonymous'
       const hls = new Hls({
         lowLatencyMode: true,
         backBufferLength: 90,
@@ -77,6 +109,7 @@ export function useRadioPlayer(currentStation) {
 
       hls.on(Hls.Events.ERROR, (_, data) => {
         if (data?.fatal) {
+          setIsLoading(false)
           setError('Unable to load this channel stream right now.')
           setIsPlaying(false)
         }
@@ -89,12 +122,18 @@ export function useRadioPlayer(currentStation) {
         }
       })
     } else {
+      if (!isHlsStream) {
+        audio.removeAttribute('crossorigin')
+        teardownAudioGraph()
+      } else {
+        audio.crossOrigin = 'anonymous'
+      }
       audio.src = sourceUrl
       audio.load()
     }
 
     return cleanupHls
-  }, [cleanupHls, currentStation, isPlaying])
+  }, [cleanupHls, currentStation, isPlaying, teardownAudioGraph])
 
   useEffect(() => {
     if (!audioRef.current) return
@@ -193,11 +232,9 @@ export function useRadioPlayer(currentStation) {
   useEffect(() => {
     return () => {
       cleanupHls()
-      if (audioCtxRef.current?.state !== 'closed') {
-        audioCtxRef.current?.close().catch(() => null)
-      }
+      teardownAudioGraph()
     }
-  }, [cleanupHls])
+  }, [cleanupHls, teardownAudioGraph])
 
   return {
     audioRef,

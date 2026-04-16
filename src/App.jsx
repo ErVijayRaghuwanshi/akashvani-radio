@@ -190,7 +190,11 @@ function App() {
 
       for (let i = 0; i < numBars; i += 1) {
         const hasRealSignal = Boolean(isPlaying && dataArray && dataArray.length)
-        const rawLevel = hasRealSignal ? getLogBinLevel(i) : 0
+        const fallbackWave =
+          0.22 +
+          0.16 * Math.sin(Date.now() / 220 + i * 0.55) +
+          0.08 * Math.sin(Date.now() / 95 + i * 0.18)
+        const rawLevel = hasRealSignal ? getLogBinLevel(i) : isPlaying ? Math.max(0.04, fallbackWave) : 0
         const leveled = Math.max(0, rawLevel - noiseFloor)
         const normalized = Math.min(1, leveled * spectrumGain)
 
@@ -225,7 +229,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
-      <audio ref={audioRef} crossOrigin="anonymous" />
+      <audio ref={audioRef} />
       <canvas ref={pipCanvasRef} width={640} height={360} className="hidden" />
       <video ref={videoRef} muted playsInline className="hidden" />
 

@@ -9,6 +9,7 @@ export function useRadioPlayer(currentStation) {
   const audioCtxRef = useRef(null)
   const analyserRef = useRef(null)
   const sourceNodeRef = useRef(null)
+  const sourceAudioElementRef = useRef(null)
   const canAnalyzeStreamRef = useRef(false)
   const currentSourceUrlRef = useRef('')
   const currentIsHlsRef = useRef(false)
@@ -45,6 +46,7 @@ export function useRadioPlayer(currentStation) {
 
     sourceNodeRef.current = null
     analyserRef.current = null
+    sourceAudioElementRef.current = null
 
     const audioCtx = audioCtxRef.current
     audioCtxRef.current = null
@@ -58,6 +60,10 @@ export function useRadioPlayer(currentStation) {
     const audio = audioRef.current
     if (!audio) return
     if (!canAnalyzeStreamRef.current) return
+
+    if (sourceAudioElementRef.current && sourceAudioElementRef.current !== audio) {
+      teardownAudioGraph()
+    }
 
     try {
       if (!audioCtxRef.current) {
@@ -78,6 +84,7 @@ export function useRadioPlayer(currentStation) {
         source.connect(analyserRef.current)
         analyserRef.current.connect(audioCtxRef.current.destination)
         sourceNodeRef.current = source
+        sourceAudioElementRef.current = audio
       }
 
       if (audioCtxRef.current.state === 'suspended') {
@@ -86,7 +93,7 @@ export function useRadioPlayer(currentStation) {
     } catch {
       analyserRef.current = null
     }
-  }, [])
+  }, [teardownAudioGraph])
 
   useEffect(() => {
     if (!audioRef.current || !currentStation) return

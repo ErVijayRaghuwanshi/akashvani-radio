@@ -309,7 +309,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
-      <audio ref={audioRef} />
+      <audio key={currentStation.id} ref={audioRef} />
       <canvas ref={pipCanvasRef} width={640} height={360} className="hidden" />
       <video ref={videoRef} muted playsInline className="hidden" />
 

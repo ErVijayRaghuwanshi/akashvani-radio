@@ -163,8 +163,11 @@ export function useRadioPlayer(currentStation) {
     }
     const onError = () => {
       const sourceUrl = currentSourceUrlRef.current
+      const resolvedSrc = audio.currentSrc || audio.src || ''
+      const resolvedAsHls = /\.m3u8(?:$|\?)/i.test(resolvedSrc)
       const canRetryAsHls =
         Boolean(sourceUrl) &&
+        resolvedAsHls &&
         !currentIsHlsRef.current &&
         !hlsFallbackTriedRef.current &&
         Hls.isSupported()
@@ -172,7 +175,7 @@ export function useRadioPlayer(currentStation) {
       if (canRetryAsHls) {
         hlsFallbackTriedRef.current = true
         currentIsHlsRef.current = true
-        canAnalyzeStreamRef.current = true
+        canAnalyzeStreamRef.current = false
         cleanupHls()
 
         audio.crossOrigin = 'anonymous'

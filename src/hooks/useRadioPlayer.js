@@ -123,6 +123,7 @@ export function useRadioPlayer(currentStation) {
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         setIsLoading(false)
+        ensureAudioGraph().catch(() => null)
         if (isPlaying) {
           audio.play().catch(() => setIsPlaying(false))
         }
@@ -136,13 +137,16 @@ export function useRadioPlayer(currentStation) {
       }
       audio.src = sourceUrl
       audio.load()
+      if (isHlsStream) {
+        ensureAudioGraph().catch(() => null)
+      }
       if (isPlaying) {
         audio.play().catch(() => setIsPlaying(false))
       }
     }
 
     return cleanupHls
-  }, [cleanupHls, currentStation, isPlaying, teardownAudioGraph])
+  }, [cleanupHls, currentStation, ensureAudioGraph, isPlaying, teardownAudioGraph])
 
   useEffect(() => {
     if (!audioRef.current) return

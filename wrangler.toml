@@ -1,0 +1,5 @@
+name = "akashvani-stream-proxy"
+main = "workers/stream-proxy.js"
+compatibility_date = "2026-04-17"
+workers_dev = true
+preview_urls = false

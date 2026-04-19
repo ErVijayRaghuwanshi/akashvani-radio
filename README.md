@@ -1,6 +1,6 @@
 # Akashvani Radio
 
-A modern web app to stream Akashvani / AIR live radio channels with a rich player UI, real-time audio spectrum visualizer, smart station sequencing, and PWA support.
+A modern web app to stream Akashvani / AIR and additional Indian radio channels with a rich player UI, spectrum visualizer, smart station sequencing, PiP mode, and PWA support.
 
 ## Live URL
 
@@ -9,8 +9,14 @@ A modern web app to stream Akashvani / AIR live radio channels with a rich playe
 ## Features
 
 - Live streaming with HLS support (`hls.js`) and native fallback.
-- Real audio spectrum visualizer (Web Audio `AnalyserNode`) on both main player and PiP canvas.
-- Picture-in-Picture support with optional auto-activation on tab switch while playing.
+- Spectrum visualizer on main player and PiP canvas:
+  - Real spectrum via Web Audio `AnalyserNode` when stream is analyzable.
+  - Smooth dummy spectrum fallback when CORS restrictions block analysis.
+- Optional Cloudflare Worker proxy support to enable real spectrum on compatible third-party streams.
+- Picture-in-Picture support with:
+  - Manual PiP toggle controls.
+  - Auto-PiP behavior after at least one successful manual PiP session.
+  - Progressive enhancement for Chromium `autoPictureInPicture` when available.
 - Media controls: play, pause, next, previous.
 - Media Session integration for hardware media keys.
 - Smart client-side station ordering using recent plays, play counts, and search interactions.
@@ -32,6 +38,8 @@ A modern web app to stream Akashvani / AIR live radio channels with a rich playe
 - `src/hooks/useSmartQueue.js` — smart sequencing and user profile behavior.
 - `src/hooks/usePersistentState.js` — localStorage persistence helper.
 - `src/data/stations.js` — station dataset.
+- `workers/stream-proxy.js` — Cloudflare Worker stream proxy (adds CORS headers).
+- `wrangler.toml` — Cloudflare Worker deployment configuration.
 - `public/manifest.webmanifest` and `public/sw.js` — PWA assets.
 
 ## Getting Started
@@ -46,6 +54,16 @@ A modern web app to stream Akashvani / AIR live radio channels with a rich playe
 ```bash
 npm install
 ```
+
+### Environment
+
+Create `.env` (or copy from `.env.example`) and set:
+
+```bash
+VITE_STREAM_PROXY_URL=https://<your-worker-url>.workers.dev
+```
+
+- If `VITE_STREAM_PROXY_URL` is not set, the app still works and uses current fallback behavior.
 
 ### Run development server
 
@@ -87,7 +105,38 @@ Publish command:
 npm run deploy
 ```
 
+## Optional: Cloudflare Worker Proxy Setup
+
+Use this if you want to attempt real spectrum on CORS-restricted third-party streams.
+
+### 1) Login + deploy Worker
+
+```bash
+npx wrangler login
+npx wrangler deploy
+```
+
+### 2) Copy Worker URL into `.env`
+
+```bash
+VITE_STREAM_PROXY_URL=https://akashvani-stream-proxy.<your-subdomain>.workers.dev
+```
+
+### 3) Run app
+
+```bash
+npm run dev
+```
+
+## Spectrum Behavior Notes
+
+- Real spectrum is available when:
+  - Stream is analyzable directly (CORS-safe), or
+  - Stream works through configured proxy.
+- Dummy spectrum is used when analysis is blocked by CORS/auth constraints.
+- Some upstreams (for example, `*.zeno.fm`) may reject Worker-origin requests with `401`; those streams automatically bypass proxy and fall back to direct playback.
+
 ## Notes
 
 - Live streams require internet access; offline mode keeps UI functional but cannot play radio streams.
-- Some browsers may require an explicit user gesture before enabling autoplay, PiP, or media-session actions.
+- Some browsers require explicit user gesture for autoplay, Web Audio context resume, or PiP entry.

@@ -1,6 +1,67 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Hls from 'hls.js'
 
+const STREAM_PROXY_URL = (import.meta.env.VITE_STREAM_PROXY_URL || '').trim()
+
+const isLikelyHlsUrl = (url) => /\.m3u8(?:$|\?)/i.test(url || '')
+
+const isRadioGardenListenUrl = (sourceUrl) => {
+  if (!sourceUrl) return false
+  return sourceUrl.startsWith('https://radio.garden/api/ara/content/listen/')
+}
+
+const buildProxyPlaybackUrl = (sourceUrl) => {
+  if (!STREAM_PROXY_URL || !sourceUrl) return ''
+  const proxyBaseUrl = STREAM_PROXY_URL.replace(/\/+$/, '')
+  const separator = proxyBaseUrl.includes('?') ? '&' : '?'
+  return `${proxyBaseUrl}${separator}url=${encodeURIComponent(sourceUrl)}`
+}
+
+const isProxyBlockedSource = (sourceUrl) => {
+  if (!sourceUrl) return false
+
+  if (isRadioGardenListenUrl(sourceUrl)) {
+    return true
+  }
+
+  try {
+    const host = new URL(sourceUrl).hostname
+    if (host === 'zeno.fm' || host.endsWith('.zeno.fm')) {
+      return true
+    }
+    return false
+  } catch {
+    return false
+  }
+}
+
+const buildPlaybackSource = (sourceUrl) => {
+  const isHlsStream = isLikelyHlsUrl(sourceUrl)
+  const canProxy = Boolean(
+    STREAM_PROXY_URL && sourceUrl && !isHlsStream && !isProxyBlockedSource(sourceUrl)
+  )
+
+  if (!canProxy) {
+    return {
+      playbackUrl: sourceUrl,
+      originalSourceUrl: sourceUrl,
+      usingProxy: false,
+      isHlsStream,
+      canAnalyzeStream: isHlsStream,
+      shouldUseCorsForAnalysis: isHlsStream,
+    }
+  }
+
+  return {
+    playbackUrl: buildProxyPlaybackUrl(sourceUrl),
+    originalSourceUrl: sourceUrl,
+    usingProxy: true,
+    isHlsStream,
+    canAnalyzeStream: true,
+    shouldUseCorsForAnalysis: true,
+  }
+}
+
 export function useRadioPlayer(currentStation) {
   const audioRef = useRef(null)
   const hlsRef = useRef(null)
@@ -12,8 +73,13 @@ export function useRadioPlayer(currentStation) {
   const sourceAudioElementRef = useRef(null)
   const canAnalyzeStreamRef = useRef(false)
   const currentSourceUrlRef = useRef('')
+  const currentOriginalSourceUrlRef = useRef('')
+  const currentUsingProxyRef = useRef(false)
+  const proxyPromotionTriedRef = useRef(false)
+  const proxyFallbackTriedRef = useRef(false)
   const currentIsHlsRef = useRef(false)
   const hlsFallbackTriedRef = useRef(false)
+  const hasManualPiPSuccessRef = useRef(false)
 
   const [isPlaying, setIsPlaying] = useState(false)
   const [volume, setVolume] = useState(1)
@@ -56,7 +122,7 @@ export function useRadioPlayer(currentStation) {
     }
   }, [])
 
-  const ensureAudioGraph = useCallback(async () => {
+  const ensureAudioGraph = useCallback(async ({ resumeContext = false } = {}) => {
     const audio = audioRef.current
     if (!audio) return
     if (!canAnalyzeStreamRef.current) return
@@ -87,7 +153,7 @@ export function useRadioPlayer(currentStation) {
         sourceAudioElementRef.current = audio
       }
 
-      if (audioCtxRef.current.state === 'suspended') {
+      if (resumeContext && audioCtxRef.current.state === 'suspended') {
         await audioCtxRef.current.resume()
       }
     } catch {
@@ -99,13 +165,25 @@ export function useRadioPlayer(currentStation) {
     if (!audioRef.current || !currentStation) return
     const audio = audioRef.current
     const sourceUrl = currentStation.liveUrl || currentStation.live_url
-    const isHlsStream = /\.m3u8(?:$|\?)/i.test(sourceUrl || '')
+    const {
+      playbackUrl,
+      originalSourceUrl,
+      usingProxy,
+      isHlsStream,
+      canAnalyzeStream,
+      shouldUseCorsForAnalysis,
+    } =
+      buildPlaybackSource(sourceUrl)
 
-    if (!sourceUrl) return
+    if (!playbackUrl) return
 
     cleanupHls()
-    canAnalyzeStreamRef.current = isHlsStream
-    currentSourceUrlRef.current = sourceUrl
+    canAnalyzeStreamRef.current = canAnalyzeStream
+    currentSourceUrlRef.current = playbackUrl
+    currentOriginalSourceUrlRef.current = originalSourceUrl
+    currentUsingProxyRef.current = usingProxy
+    proxyPromotionTriedRef.current = false
+    proxyFallbackTriedRef.current = false
     currentIsHlsRef.current = isHlsStream
     hlsFallbackTriedRef.current = false
 
@@ -117,7 +195,7 @@ export function useRadioPlayer(currentStation) {
       })
 
       hlsRef.current = hls
-      hls.loadSource(sourceUrl)
+      hls.loadSource(playbackUrl)
       hls.attachMedia(audio)
 
       hls.on(Hls.Events.ERROR, (_, data) => {
@@ -136,15 +214,17 @@ export function useRadioPlayer(currentStation) {
         }
       })
     } else {
-      if (!isHlsStream) {
+      if (!canAnalyzeStream) {
         audio.removeAttribute('crossorigin')
         teardownAudioGraph()
-      } else {
+      } else if (shouldUseCorsForAnalysis) {
         audio.crossOrigin = 'anonymous'
+      } else {
+        audio.removeAttribute('crossorigin')
       }
-      audio.src = sourceUrl
+      audio.src = playbackUrl
       audio.load()
-      if (isHlsStream) {
+      if (canAnalyzeStream) {
         ensureAudioGraph().catch(() => null)
       }
       if (isPlaying) {
@@ -165,10 +245,136 @@ export function useRadioPlayer(currentStation) {
     if (!audio) return
 
     const onCanPlay = () => {
+      const originalSourceUrl = currentOriginalSourceUrlRef.current
+      const resolvedSrc = audio.currentSrc || audio.src || ''
+      const shouldPromoteToProxy =
+        Boolean(STREAM_PROXY_URL) &&
+        isRadioGardenListenUrl(originalSourceUrl) &&
+        !currentUsingProxyRef.current &&
+        !proxyPromotionTriedRef.current &&
+        Boolean(resolvedSrc) &&
+        resolvedSrc !== originalSourceUrl &&
+        !isProxyBlockedSource(resolvedSrc)
+
+      if (shouldPromoteToProxy) {
+        const promotedPlaybackUrl = buildProxyPlaybackUrl(resolvedSrc)
+        if (promotedPlaybackUrl) {
+          proxyPromotionTriedRef.current = true
+          currentSourceUrlRef.current = promotedPlaybackUrl
+          currentOriginalSourceUrlRef.current = resolvedSrc
+          currentUsingProxyRef.current = true
+          proxyFallbackTriedRef.current = false
+
+          const promotedIsHls = isLikelyHlsUrl(resolvedSrc)
+          currentIsHlsRef.current = promotedIsHls
+          canAnalyzeStreamRef.current = true
+
+          cleanupHls()
+
+          if (promotedIsHls && Hls.isSupported()) {
+            audio.crossOrigin = 'anonymous'
+            const hls = new Hls({
+              lowLatencyMode: true,
+              backBufferLength: 90,
+            })
+
+            hlsRef.current = hls
+            hls.loadSource(promotedPlaybackUrl)
+            hls.attachMedia(audio)
+
+            hls.on(Hls.Events.ERROR, (_, data) => {
+              if (data?.fatal) {
+                setIsLoading(false)
+                setError('Unable to load this channel stream right now.')
+                setIsPlaying(false)
+              }
+            })
+
+            hls.on(Hls.Events.MANIFEST_PARSED, () => {
+              setIsLoading(false)
+              setError('')
+              ensureAudioGraph().catch(() => null)
+              if (isPlaying) {
+                audio.play().catch(() => setIsPlaying(false))
+              }
+            })
+            return
+          }
+
+          audio.crossOrigin = 'anonymous'
+          audio.src = promotedPlaybackUrl
+          audio.load()
+          ensureAudioGraph().catch(() => null)
+          if (isPlaying) {
+            audio.play().catch(() => setIsPlaying(false))
+          }
+          return
+        }
+      }
+
       setIsLoading(false)
       setError('')
     }
     const onError = () => {
+      const originalSourceUrl = currentOriginalSourceUrlRef.current
+      const shouldFallbackFromProxy =
+        currentUsingProxyRef.current && !proxyFallbackTriedRef.current && Boolean(originalSourceUrl)
+
+      if (shouldFallbackFromProxy) {
+        proxyFallbackTriedRef.current = true
+        currentUsingProxyRef.current = false
+
+        const fallbackIsHls = isLikelyHlsUrl(originalSourceUrl)
+        currentSourceUrlRef.current = originalSourceUrl
+        currentIsHlsRef.current = fallbackIsHls
+        canAnalyzeStreamRef.current = fallbackIsHls
+        cleanupHls()
+
+        if (!fallbackIsHls) {
+          audio.removeAttribute('crossorigin')
+          teardownAudioGraph()
+          audio.src = originalSourceUrl
+          audio.load()
+          audio.play().catch(() => setIsPlaying(false))
+          return
+        }
+
+        if (Hls.isSupported()) {
+          audio.crossOrigin = 'anonymous'
+          const hls = new Hls({
+            lowLatencyMode: true,
+            backBufferLength: 90,
+          })
+
+          hlsRef.current = hls
+          hls.loadSource(originalSourceUrl)
+          hls.attachMedia(audio)
+
+          hls.on(Hls.Events.ERROR, (_, data) => {
+            if (data?.fatal) {
+              setIsLoading(false)
+              setError('Unable to load this channel stream right now.')
+              setIsPlaying(false)
+            }
+          })
+
+          hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            setIsLoading(false)
+            setError('')
+            ensureAudioGraph().catch(() => null)
+            audio.play().catch(() => setIsPlaying(false))
+          })
+          return
+        }
+
+        audio.crossOrigin = 'anonymous'
+        audio.src = originalSourceUrl
+        audio.load()
+        ensureAudioGraph().catch(() => null)
+        audio.play().catch(() => setIsPlaying(false))
+        return
+      }
+
       const sourceUrl = currentSourceUrlRef.current
       const resolvedSrc = audio.currentSrc || audio.src || ''
       const resolvedAsHls = /\.m3u8(?:$|\?)/i.test(resolvedSrc)
@@ -223,7 +429,7 @@ export function useRadioPlayer(currentStation) {
       audio.removeEventListener('canplay', onCanPlay)
       audio.removeEventListener('error', onError)
     }
-  }, [cleanupHls])
+  }, [cleanupHls, ensureAudioGraph, isPlaying, teardownAudioGraph])
 
   useEffect(() => {
     const audio = audioRef.current
@@ -241,7 +447,7 @@ export function useRadioPlayer(currentStation) {
   }, [ensureAudioGraph, isPlaying])
 
   const togglePlay = useCallback(() => {
-    ensureAudioGraph().finally(() => {
+    ensureAudioGraph({ resumeContext: true }).finally(() => {
       setIsPlaying((prev) => !prev)
     })
   }, [ensureAudioGraph])
@@ -252,10 +458,20 @@ export function useRadioPlayer(currentStation) {
 
   const ensurePiPVideoStream = useCallback(async () => {
     if (!videoRef.current || !pipCanvasRef.current) return false
+    const pipVideo = videoRef.current
 
-    if (!videoRef.current.srcObject) {
-      videoRef.current.srcObject = pipCanvasRef.current.captureStream(30)
-      await videoRef.current.play().catch(() => {})
+    if ('autoPictureInPicture' in pipVideo) {
+      pipVideo.autoPictureInPicture = true
+    }
+
+    if (!pipVideo.srcObject) {
+      pipVideo.srcObject = pipCanvasRef.current.captureStream(30)
+    }
+
+    try {
+      await pipVideo.play()
+    } catch {
+      return false
     }
 
     return true
@@ -272,8 +488,11 @@ export function useRadioPlayer(currentStation) {
         await document.exitPictureInPicture()
       } else {
         await videoRef.current.requestPictureInPicture()
+        hasManualPiPSuccessRef.current = true
+        setError('')
       }
     } catch {
+      setError('Picture in Picture is unavailable right now. Try again from the player controls.')
       return
     }
   }, [ensurePiPVideoStream, supportsPiP])
@@ -282,7 +501,14 @@ export function useRadioPlayer(currentStation) {
     if (!supportsPiP) return
 
     const onVisibilityChange = async () => {
-      if (!document.hidden || !isPlaying || document.pictureInPictureElement) return
+      if (
+        !document.hidden ||
+        !isPlaying ||
+        document.pictureInPictureElement ||
+        !hasManualPiPSuccessRef.current
+      ) {
+        return
+      }
 
       const streamReady = await ensurePiPVideoStream()
       if (!streamReady || !videoRef.current) return

@@ -19,7 +19,7 @@ function uniquePush(list, value, max) {
 }
 
 export function useSmartQueue(stations) {
-  const [profile, setProfile] = usePersistentState('akashvani-user-profile-v1', defaultProfile)
+  const [profile, setProfile] = usePersistentState('radio-wave-user-profile-v1', defaultProfile)
 
   const stationById = useMemo(() => {
     const map = new Map()

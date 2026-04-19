@@ -1,10 +1,10 @@
-# Akashvani Radio
+# RadioWave
 
-A modern web app to stream Akashvani / AIR live radio channels with a rich player UI, real-time audio spectrum visualizer, smart station sequencing, and PWA support.
+A modern web app to stream live radio channels with a rich player UI, real-time audio spectrum visualizer, smart station sequencing, and PWA support.
 
 ## Live URL
 
-- https://ervijayraghuwanshi.github.io/akashvani-radio/
+- https://ervijayraghuwanshi.github.io/radio-wave/
 
 ## Features
 
@@ -76,7 +76,7 @@ npm run preview
 Deployment is configured using `gh-pages` and Vite base path:
 
 - `vite.config.js` uses:
-  - `base: '/akashvani-radio/'`
+  - `base: '/radio-wave/'`
 - `package.json` includes:
   - `predeploy`: `npm run build`
   - `deploy`: `gh-pages -d dist`

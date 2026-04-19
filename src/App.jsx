@@ -188,7 +188,7 @@ function App() {
     navigator.mediaSession.metadata = new MediaMetadata({
       title: currentStation.name,
       artist: `${currentStation.state} • ${currentStation.language}`,
-      album: 'Akashvani Radio',
+      album: 'RadioWave',
       artwork: [
         { src: currentStation.image, sizes: '96x96', type: 'image/jpeg' },
         { src: currentStation.image, sizes: '192x192', type: 'image/jpeg' },
@@ -326,7 +326,7 @@ function App() {
           <div className="relative z-10 flex flex-col gap-5 p-4 sm:p-6 lg:p-8">
             <div className="flex flex-wrap items-start justify-between gap-3 sm:items-center">
               <div className="rounded-full border border-orange-500/30 bg-orange-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-orange-300">
-                Akashvani Live
+                RadioWave Live
               </div>
               <div className="flex flex-col items-start gap-2 text-xs text-slate-300 sm:items-end">
                 <span>{smartList.length} smart-ranked channels</span>
@@ -351,7 +351,7 @@ function App() {
                 alt={currentStation.name}
                 className="h-20 w-20 rounded-2xl border border-slate-700 object-cover shadow-xl sm:h-28 sm:w-28 lg:h-44 lg:w-44 lg:rounded-3xl"
                 onError={(event) => {
-                  event.currentTarget.src = 'https://via.placeholder.com/300x300?text=Akashvani'
+                  event.currentTarget.src = 'https://via.placeholder.com/300x300?text=RadioWave'
                 }}
               />
 

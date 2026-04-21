@@ -1,4 +1,4 @@
-const CACHE_NAME = 'radio-wave-shell-v1'
+const CACHE_NAME = 'akashvani-shell-v1'
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/favicon.svg', '/icons/pwa-192.svg', '/icons/pwa-512.svg']
 
 self.addEventListener('install', (event) => {

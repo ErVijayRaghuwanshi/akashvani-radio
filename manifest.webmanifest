@@ -1,19 +1,19 @@
 {
-  "name": "RadioWave",
-  "short_name": "Wave",
-  "description": "A modern radio streaming app with audio visualizer and smart queue",
-  "start_url": "/radio-wave",
+  "name": "Akashvani Radio",
+  "short_name": "Akashvani",
+  "description": "Live Akashvani and AIR radio with smart personalized playback queue",
+  "start_url": "/akashvani-radio",
   "display": "standalone",
   "background_color": "#020617",
   "theme_color": "#111827",
   "icons": [
     {
-      "src": "/radio-wave/icons/pwa-192.svg",
+      "src": "/akashvani-radio/icons/pwa-192.svg",
       "sizes": "192x192",
       "type": "image/svg+xml"
     },
     {
-      "src": "/radio-wave/icons/pwa-512.svg",
+      "src": "/akashvani-radio/icons/pwa-512.svg",
       "sizes": "512x512",
       "type": "image/svg+xml",
       "purpose": "any maskable"

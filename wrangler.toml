@@ -6,7 +6,7 @@ workers_dev = true
 preview_urls = false
 
 [[workers]]
-name = "openai-gateway"
+name = "akashvani-chatgpt-proxy"
 main = "workers/chatgpt-proxy.js"
 compatibility_date = "2026-04-17"
 workers_dev = true

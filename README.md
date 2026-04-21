@@ -4,7 +4,7 @@ A modern web app to stream Akashvani / AIR and additional Indian radio channels 
 
 ## Live URL
 
-- https://ervijayraghuwanshi.github.io/akashvani-radio/
+- https://ervijayraghuwanshi.github.io/radio-wave/
 
 ## Features
 
@@ -94,7 +94,7 @@ npm run preview
 Deployment is configured using `gh-pages` and Vite base path:
 
 - `vite.config.js` uses:
-  - `base: '/akashvani-radio/'`
+  - `base: '/radio-wave/'`
 - `package.json` includes:
   - `predeploy`: `npm run build`
   - `deploy`: `gh-pages -d dist`

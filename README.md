@@ -1,4 +1,4 @@
-# Akashvani Radio
+# Radio Wave
 
 A modern web app to stream Akashvani / AIR and additional Indian radio channels with a rich player UI, spectrum visualizer, smart station sequencing, PiP mode, and PWA support.
 

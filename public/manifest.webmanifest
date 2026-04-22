@@ -1,7 +1,7 @@
 {
-  "name": "Radio Wave",
-  "short_name": "Akashvani",
-  "description": "Live Akashvani and AIR radio with smart personalized playback queue",
+  "name": "RadioWave",
+  "short_name": "Wave",
+  "description": "A modern radio streaming app with audio visualizer and smart queue",
   "start_url": "/radio-wave",
   "display": "standalone",
   "background_color": "#020617",
